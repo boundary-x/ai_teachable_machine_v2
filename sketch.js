@@ -1,6 +1,7 @@
 /**
  * sketch.js
  * Boundary X Teachable Machine Controller Logic
+ * (Smart ID Support Added)
  */
 
 // Bluetooth UUIDs for micro:bit UART service
@@ -30,7 +31,7 @@ let modelInput, modelSelect, initializeModelButton, stopClassifyButton;
 let flipButton, switchCameraButton, connectBluetoothButton, disconnectBluetoothButton;
 let modelStatusDiv;
 
-// 모델 리스트
+// 모델 리스트 (전체 주소 유지)
 const modelList = {
   "가위 바위 보 분류": "https://teachablemachine.withgoogle.com/models/vOi4Y0yiK/",
   "속도 표지판 분류": "https://teachablemachine.withgoogle.com/models/cTrp8ZF93/",
@@ -76,7 +77,7 @@ function setupCamera() {
 }
 
 function createUI() {
-  // 1. 카메라 버튼 (이모티콘 제거)
+  // 1. 카메라 버튼
   flipButton = createButton("좌우 반전");
   flipButton.parent('camera-control-buttons');
   flipButton.addClass('start-button');
@@ -87,7 +88,7 @@ function createUI() {
   switchCameraButton.addClass('start-button');
   switchCameraButton.mousePressed(switchCamera);
 
-  // 2. 블루투스 버튼 (이모티콘 제거)
+  // 2. 블루투스 버튼
   connectBluetoothButton = createButton("기기 연결");
   connectBluetoothButton.parent('bluetooth-control-buttons');
   connectBluetoothButton.addClass('start-button');
@@ -113,7 +114,8 @@ function createUI() {
 
   modelInput = createInput('');
   modelInput.parent('model-key-container');
-  modelInput.attribute('placeholder', '예: https://teachablemachine.withgoogle.com/models/.../');
+  // 변경점: 플레이스홀더를 수정하여 ID 입력 유도
+  modelInput.attribute('placeholder', '모델 전체 주소 또는 짧은 ID 입력 (예: lSgKZj_c5)');
 
   modelStatusDiv = createDiv('모델을 로드해주세요.');
   modelStatusDiv.parent('model-key-container');
@@ -148,24 +150,32 @@ function updateModelInput() {
   modelInput.value(selectedModelURL || "");
 }
 
+// 핵심 변경: 스마트 주소 변환 로직 적용
 function initializeModel() {
-  let modelURL = modelInput.value().trim();
+  let inputVal = modelInput.value().trim();
+  let finalModelURL = "";
   
-  if (!modelURL) {
-    alert('모델 주소(URL)를 입력하세요!');
+  if (!inputVal) {
+    alert('모델 주소 또는 ID를 입력하세요!');
     return;
   }
 
-  if (!modelURL.startsWith('http')) {
-     alert('올바른 전체 URL을 입력해주세요.');
-     return;
+  // 1. 전체 주소(https://...)를 넣었을 경우
+  if (inputVal.startsWith('http')) {
+      finalModelURL = inputVal;
+  } 
+  // 2. 짧은 ID만 넣었을 경우 (예: lSgKZj_c5)
+  else {
+      // 티처블 머신 기본 주소 붙여주기
+      finalModelURL = "https://teachablemachine.withgoogle.com/models/" + inputVal + "/";
   }
 
-  if (!modelURL.endsWith('model.json')) {
-      if (!modelURL.endsWith('/')) {
-          modelURL += '/';
+  // 3. 주소 끝에 model.json이 없으면 자동으로 붙여줌
+  if (!finalModelURL.endsWith('model.json')) {
+      if (!finalModelURL.endsWith('/')) {
+          finalModelURL += '/';
       }
-      modelURL += 'model.json';
+      finalModelURL += 'model.json';
   }
 
   if (modelStatusDiv) {
@@ -174,11 +184,13 @@ function initializeModel() {
       modelStatusDiv.style("background-color", "#F1F3F4");
   }
 
+  console.log("Loading from:", finalModelURL); // 변환된 주소 확인용 로그
+
   try {
-    classifier = ml5.imageClassifier(modelURL, modelLoaded);
+    classifier = ml5.imageClassifier(finalModelURL, modelLoaded);
   } catch (e) {
       console.error(e);
-      if (modelStatusDiv) modelStatusDiv.html("모델 로드 실패. 주소를 확인해주세요.");
+      if (modelStatusDiv) modelStatusDiv.html("모델 로드 실패. 주소나 ID를 확인해주세요.");
   }
 }
 
