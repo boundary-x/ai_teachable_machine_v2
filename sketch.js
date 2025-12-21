@@ -1,7 +1,10 @@
 /**
  * sketch.js
  * Boundary X Teachable Machine Controller Logic
- * (Smart ID Support Added)
+ * Features:
+ * 1. Smart ID Support (Auto URL generation)
+ * 2. Android Camera Fix (Resource release handling)
+ * 3. Bluetooth UART Communication
  */
 
 // Bluetooth UUIDs for micro:bit UART service
@@ -23,7 +26,7 @@ let isClassifying = false;
 
 // Camera control variables
 let isFlipped = false;
-let facingMode = "user";
+let facingMode = "user"; // "user" (전면) or "environment" (후면)
 let isVideoLoaded = false; 
 
 // UI elements
@@ -48,32 +51,53 @@ function setup() {
   createUI();
 }
 
+// [수정됨] 안드로이드 호환성을 위해 해상도 강제 제거 및 로딩 로직 개선
 function setupCamera() {
-  video = createCapture({
+  // 해상도(width, height)를 제약 조건에 넣지 않고 facingMode만 설정
+  let constraints = {
     video: {
-      facingMode: facingMode,
-      width: 400,  
-      height: 300 
-    }
-  });
-  video.elt.onloadeddata = function() {
-    isVideoLoaded = true;
-    resizeCanvasToFit(); 
+      facingMode: facingMode
+    },
+    audio: false
   };
-  video.size(400, 300); 
+
+  video = createCapture(constraints);
+  
+  // 비디오 메타데이터 로드 시 처리
+  video.elt.onloadeddata = function() {
+    console.log("Video metadata loaded");
+  };
+
+  video.size(400, 300); // p5.js 요소 크기 조정
   video.hide();
 
+  // 실제 비디오 데이터가 들어오는지 체크 (안드로이드 이슈 방지)
   let videoLoadCheck = setInterval(() => {
     if (isVideoLoaded) {
       clearInterval(videoLoadCheck);
       return;
     }
-    if (video.elt.videoWidth && video.elt.videoHeight) {
+    // readyState >= 2 (HAVE_CURRENT_DATA)
+    if (video.elt.readyState >= 2) {
       isVideoLoaded = true;
       resizeCanvasToFit();
       clearInterval(videoLoadCheck);
+      console.log("Video stream ready");
     }
   }, 100);
+}
+
+// [신규] 카메라 자원 완전 해제 함수
+function stopVideo() {
+  if (video) {
+    // 하드웨어 스트림 트랙 정지 (중요!)
+    if (video.elt.srcObject) {
+      const tracks = video.elt.srcObject.getTracks();
+      tracks.forEach(track => track.stop());
+    }
+    video.remove(); // p5 요소 제거
+    video = null;
+  }
 }
 
 function createUI() {
@@ -114,7 +138,7 @@ function createUI() {
 
   modelInput = createInput('');
   modelInput.parent('model-key-container');
-  // 변경점: 플레이스홀더를 수정하여 ID 입력 유도
+  // 스마트 ID 안내 문구 적용
   modelInput.attribute('placeholder', '모델 전체 주소 또는 짧은 ID 입력 (예: lSgKZj_c5)');
 
   modelStatusDiv = createDiv('모델을 로드해주세요.');
@@ -138,11 +162,21 @@ function toggleFlip() {
   isFlipped = !isFlipped;
 }
 
+// [수정됨] 카메라 전환 시 stopVideo() 호출 및 딜레이 적용
 function switchCamera() {
-  facingMode = facingMode === "user" ? "environment" : "user";
-  video.remove();
+  // 1. 기존 카메라 완전 종료
+  stopVideo();
+  
+  // 2. 로딩 상태 초기화
   isVideoLoaded = false; 
-  setupCamera();
+  
+  // 3. 모드 전환
+  facingMode = facingMode === "user" ? "environment" : "user";
+  
+  // 4. 약간의 딜레이 후 재시작 (하드웨어 자원 해제 시간 확보)
+  setTimeout(() => {
+    setupCamera();
+  }, 200); 
 }
 
 function updateModelInput() {
@@ -150,7 +184,7 @@ function updateModelInput() {
   modelInput.value(selectedModelURL || "");
 }
 
-// 핵심 변경: 스마트 주소 변환 로직 적용
+// [수정됨] 스마트 ID 처리 로직 (ID만 입력해도 URL 자동 생성)
 function initializeModel() {
   let inputVal = modelInput.value().trim();
   let finalModelURL = "";
@@ -170,7 +204,7 @@ function initializeModel() {
       finalModelURL = "https://teachablemachine.withgoogle.com/models/" + inputVal + "/";
   }
 
-  // 3. 주소 끝에 model.json이 없으면 자동으로 붙여줌
+  // 3. 주소 끝에 model.json 보정
   if (!finalModelURL.endsWith('model.json')) {
       if (!finalModelURL.endsWith('/')) {
           finalModelURL += '/';
@@ -178,13 +212,14 @@ function initializeModel() {
       finalModelURL += 'model.json';
   }
 
+  // UI 피드백
   if (modelStatusDiv) {
       modelStatusDiv.html("모델을 불러오는 중입니다...");
       modelStatusDiv.style("color", "#666");
       modelStatusDiv.style("background-color", "#F1F3F4");
   }
 
-  console.log("Loading from:", finalModelURL); // 변환된 주소 확인용 로그
+  console.log("Loading model from:", finalModelURL);
 
   try {
     classifier = ml5.imageClassifier(finalModelURL, modelLoaded);
@@ -263,6 +298,7 @@ function draw() {
     image(video, 0, 0, width, height);
   }
 
+  // 결과 표시 바
   const boxHeight = 50;
   fill(0, 0, 0, 180);
   noStroke();
