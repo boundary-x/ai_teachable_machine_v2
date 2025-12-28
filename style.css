@@ -67,6 +67,22 @@ header {
   transition: height 0.3s ease;
 }
 
+/* [추가] TM 뱃지 스타일 */
+.tm-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background-color: #FFFFFF; /* 흰색 배경 */
+  color: #000000;            /* 검은 글씨 */
+  font-size: 0.75rem;        /* 작은 폰트 사이즈 */
+  font-weight: 800;          /* 굵게 */
+  padding: 2px 6px;          /* 내부 여백 */
+  border-radius: 4px;        /* 둥근 모서리 (Rounded Square) */
+  margin-left: 4px;          /* 텍스트와의 간격 조정 */
+  line-height: 1;
+  vertical-align: middle;
+}
+
 .back-button {
   text-decoration: none;
   color: #FFFFFF;
