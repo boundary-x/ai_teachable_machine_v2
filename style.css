@@ -1,4 +1,4 @@
-/* style.css - Boundary X: Final Modern Mono Tech (Teachable Machine Edition) */
+/* style.css - Boundary X: Image Model Edition (Square Ratio Fixed) */
 
 :root {
   /* Palette */
@@ -86,39 +86,42 @@ header {
 /* Main Layout */
 main {
   width: 100%;
-  max-width: 840px;
+  max-width: 1200px;
   margin: 0 auto;
   padding: 3rem 1.5rem;
   flex: 1;
   display: flex;
   flex-direction: column;
-  align-items: center; /* 중앙 정렬 */
+  align-items: center;
+  gap: 2rem;
 }
 
-/* Canvas Container (Video) */
+/* [핵심 수정] Canvas Container (1:1 Square Ratio) */
 .canvas-container { 
     width: 100%;
     max-width: 400px;
-    height: auto;
-    aspect-ratio: 4/3;
+    aspect-ratio: 1/1; /* 4/3 -> 1/1 정사각형 변경 */
     border-radius: var(--radius-card);
     overflow: hidden;
     background: #000;
-    margin-bottom: 2rem;
     box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+    position: relative;
+    flex-shrink: 0;
 }
 
 canvas { 
     display: block; 
     width: 100% !important; 
     height: 100% !important; 
+    object-fit: cover; 
 }
 
 .controls {
   width: 100%;
+  max-width: 600px;
   display: flex;
   flex-direction: column;
-  gap: 32px;
+  gap: 24px;
 }
 
 .control-group {
@@ -128,7 +131,6 @@ canvas {
   border: 1px solid var(--border-color);
 }
 
-/* Title Style */
 .control-group h3 {
   background: transparent;
   color: #000000;
@@ -189,7 +191,7 @@ button {
   border-color: var(--danger);
 }
 
-/* Inputs & Selects */
+/* Inputs */
 input, select {
   width: 100%;
   padding: 0.9rem 1.2rem;
@@ -335,47 +337,36 @@ address {
   color: #666;
 }
 
-/* Mobile Responsive */
-@media (max-width: 768px) {
-  .footer-top {
-    flex-direction: column;
-    gap: 3rem;
-  }
-  .footer-links {
-    gap: 2.5rem;
-    flex-direction: column;
-  }
-
-  header {
-    padding: 0.8rem 1rem;
-  }
-  
-  .title {
-    font-size: 1rem;
-  }
-  
-  .title img {
-    height: 20px;
-  }
-  
-  .back-button {
-    font-size: 0.8rem;
-    padding: 0.4rem 0.8rem;
-  }
-
+/* PC & Tablet Layout (가로 배치) */
+@media (min-width: 768px) {
   main {
-      padding: 2rem 1rem;
-  }
-  
-  .control-group {
-      padding: 1.5rem;
+    flex-direction: row;       
+    align-items: flex-start;   
+    justify-content: center;   
+    gap: 4rem;                 
   }
 
-  .button-group {
-    flex-direction: column;
+  .canvas-container {
+    position: sticky; 
+    top: 2rem;        
+    width: 400px;
   }
-  
-  button {
-      width: 100%;
+
+  .controls {
+    flex: 1;          
   }
+}
+
+/* Mobile Layout */
+@media (max-width: 767px) {
+  .footer-top { flex-direction: column; gap: 3rem; }
+  .footer-links { gap: 2.5rem; flex-direction: column; }
+  header { padding: 0.8rem 1rem; }
+  .title { font-size: 1rem; }
+  .title img { height: 20px; }
+  .back-button { font-size: 0.8rem; padding: 0.4rem 0.8rem; }
+  main { padding: 2rem 1rem; }
+  .control-group { padding: 1.5rem; }
+  .button-group { flex-direction: column; }
+  button { width: 100%; }
 }
