@@ -1,6 +1,6 @@
 /**
  * sketch.js
- * Boundary X Teachable Machine Controller Logic (Image Model - Square Ratio)
+ * Boundary X Teachable Machine Controller Logic (Square Crop Fixed)
  */
 
 // Bluetooth UUIDs
@@ -38,10 +38,11 @@ const modelList = {
 };
 
 let isSendingData = false;
+let canvas; // Canvas 객체 저장용
 
 function setup() {
-  // [핵심 수정] 400x400 정사각형 캔버스 생성 (인식률 향상)
-  let canvas = createCanvas(400, 400);
+  // 400x400 정사각형 캔버스
+  canvas = createCanvas(400, 400);
   canvas.parent('p5-container');
   
   setupCamera();
@@ -52,6 +53,7 @@ function setupCamera() {
   let constraints = {
     video: {
       facingMode: facingMode
+      // width, height를 강제하지 않음 (카메라 고유 비율 사용)
     },
     audio: false
   };
@@ -62,8 +64,7 @@ function setupCamera() {
     console.log("Video metadata loaded");
   };
 
-  // [핵심 수정] 비디오 크기도 정사각형으로 설정
-  video.size(400, 400); 
+  // [수정] video.size() 강제 설정을 제거하여 원본 비율 유지
   video.hide();
 
   let videoLoadCheck = setInterval(() => {
@@ -71,11 +72,12 @@ function setupCamera() {
       clearInterval(videoLoadCheck);
       return;
     }
-    if (video.elt.readyState >= 2) {
+    // 데이터가 들어오기 시작하면 로드 완료
+    if (video.elt.readyState >= 2 && video.width > 0) {
       isVideoLoaded = true;
       resizeCanvasToFit();
       clearInterval(videoLoadCheck);
-      console.log("Video stream ready");
+      console.log(`Video Stream Ready: ${video.width}x${video.height}`);
     }
   }, 100);
 }
@@ -235,7 +237,9 @@ function stopClassification() {
 
 function classifyVideo() {
   if (!isClassifying) return;
-  classifier.classify(video, gotResults);
+  // [수정] 왜곡 없는 캔버스 화면 자체를 분류 (정확도 향상)
+  // video를 직접 넣으면 원본(4:3)이 들어가서 AI가 찌그러진 상태로 인식할 수 있음
+  classifier.classify(canvas, gotResults);
 }
 
 function gotResults(error, results) {
@@ -251,10 +255,9 @@ function gotResults(error, results) {
 }
 
 function draw() {
-  // [수정] 배경도 400x400에 맞춰 검정색으로 설정
   background(0);
   
-  if (!isVideoLoaded) {
+  if (!isVideoLoaded || video.width === 0) {
     textAlign(CENTER, CENTER);
     textSize(20);
     fill(255);
@@ -262,15 +265,26 @@ function draw() {
     return;
   }
 
+  // [핵심 수정] 센터 크롭 (Center Crop) 로직
+  // 영상의 가로/세로 중 작은 쪽을 기준으로 1:1 비율을 만듦
+  let vw = video.width;
+  let vh = video.height;
+  let minDim = min(vw, vh); // 정사각형 한 변의 길이
+  
+  // 영상의 정중앙 좌표 계산
+  let sx = (vw - minDim) / 2;
+  let sy = (vh - minDim) / 2;
+
+  push();
   if (isFlipped) {
-    push();
     translate(width, 0);
     scale(-1, 1);
-    image(video, 0, 0, width, height);
-    pop();
-  } else {
-    image(video, 0, 0, width, height);
   }
+  
+  // image(원본, 캔버스x, 캔버스y, 캔버스w, 캔버스h, 원본x, 원본y, 원본w, 원본h)
+  // 원본 영상의 중앙(sx, sy)에서 정사각형(minDim)만큼 잘라내어 캔버스(400x400)에 꽉 차게 그림
+  image(video, 0, 0, width, height, sx, sy, minDim, minDim);
+  pop();
 
   // 결과 표시 바
   const boxHeight = 50;
@@ -285,9 +299,7 @@ function draw() {
 }
 
 function resizeCanvasToFit() {
-  // [수정] 400x400으로 리사이즈
   resizeCanvas(400, 400);
-  video.size(400, 400);
 }
 
 /* --- Bluetooth Logic --- */
