@@ -1,13 +1,9 @@
 /**
  * sketch.js
- * Boundary X Teachable Machine Controller Logic
- * Features:
- * 1. Smart ID Support (Auto URL generation)
- * 2. Android Camera Fix (Resource release handling)
- * 3. Bluetooth UART Communication
+ * Boundary X Teachable Machine Controller Logic (Image Model - Square Ratio)
  */
 
-// Bluetooth UUIDs for micro:bit UART service
+// Bluetooth UUIDs
 const UART_SERVICE_UUID = "6e400001-b5a3-f393-e0a9-e50e24dcca9e";
 const UART_TX_CHARACTERISTIC_UUID = "6e400002-b5a3-f393-e0a9-e50e24dcca9e";
 const UART_RX_CHARACTERISTIC_UUID = "6e400003-b5a3-f393-e0a9-e50e24dcca9e";
@@ -26,7 +22,7 @@ let isClassifying = false;
 
 // Camera control variables
 let isFlipped = false;
-let facingMode = "user"; // "user" (전면) or "environment" (후면)
+let facingMode = "user";
 let isVideoLoaded = false; 
 
 // UI elements
@@ -34,7 +30,7 @@ let modelInput, modelSelect, initializeModelButton, stopClassifyButton;
 let flipButton, switchCameraButton, connectBluetoothButton, disconnectBluetoothButton;
 let modelStatusDiv;
 
-// 모델 리스트 (전체 주소 유지)
+// 모델 리스트
 const modelList = {
   "가위 바위 보 분류": "https://teachablemachine.withgoogle.com/models/vOi4Y0yiK/",
   "속도 표지판 분류": "https://teachablemachine.withgoogle.com/models/cTrp8ZF93/",
@@ -44,16 +40,15 @@ const modelList = {
 let isSendingData = false;
 
 function setup() {
-  let canvas = createCanvas(400, 300);
+  // [핵심 수정] 400x400 정사각형 캔버스 생성 (인식률 향상)
+  let canvas = createCanvas(400, 400);
   canvas.parent('p5-container');
   
   setupCamera();
   createUI();
 }
 
-// [수정됨] 안드로이드 호환성을 위해 해상도 강제 제거 및 로딩 로직 개선
 function setupCamera() {
-  // 해상도(width, height)를 제약 조건에 넣지 않고 facingMode만 설정
   let constraints = {
     video: {
       facingMode: facingMode
@@ -63,21 +58,19 @@ function setupCamera() {
 
   video = createCapture(constraints);
   
-  // 비디오 메타데이터 로드 시 처리
   video.elt.onloadeddata = function() {
     console.log("Video metadata loaded");
   };
 
-  video.size(400, 300); // p5.js 요소 크기 조정
+  // [핵심 수정] 비디오 크기도 정사각형으로 설정
+  video.size(400, 400); 
   video.hide();
 
-  // 실제 비디오 데이터가 들어오는지 체크 (안드로이드 이슈 방지)
   let videoLoadCheck = setInterval(() => {
     if (isVideoLoaded) {
       clearInterval(videoLoadCheck);
       return;
     }
-    // readyState >= 2 (HAVE_CURRENT_DATA)
     if (video.elt.readyState >= 2) {
       isVideoLoaded = true;
       resizeCanvasToFit();
@@ -87,21 +80,18 @@ function setupCamera() {
   }, 100);
 }
 
-// [신규] 카메라 자원 완전 해제 함수
 function stopVideo() {
   if (video) {
-    // 하드웨어 스트림 트랙 정지 (중요!)
     if (video.elt.srcObject) {
       const tracks = video.elt.srcObject.getTracks();
       tracks.forEach(track => track.stop());
     }
-    video.remove(); // p5 요소 제거
+    video.remove(); 
     video = null;
   }
 }
 
 function createUI() {
-  // 1. 카메라 버튼
   flipButton = createButton("좌우 반전");
   flipButton.parent('camera-control-buttons');
   flipButton.addClass('start-button');
@@ -112,7 +102,6 @@ function createUI() {
   switchCameraButton.addClass('start-button');
   switchCameraButton.mousePressed(switchCamera);
 
-  // 2. 블루투스 버튼
   connectBluetoothButton = createButton("기기 연결");
   connectBluetoothButton.parent('bluetooth-control-buttons');
   connectBluetoothButton.addClass('start-button');
@@ -123,7 +112,6 @@ function createUI() {
   disconnectBluetoothButton.addClass('stop-button');
   disconnectBluetoothButton.mousePressed(disconnectBluetooth);
 
-  // 3. 모델 선택 및 로드
   modelSelect = createSelect();
   modelSelect.parent('model-select-and-link');
   modelSelect.option("샘플 모델 선택 또는 직접 입력", "");
@@ -138,7 +126,6 @@ function createUI() {
 
   modelInput = createInput('');
   modelInput.parent('model-key-container');
-  // 스마트 ID 안내 문구 적용
   modelInput.attribute('placeholder', '모델 전체 주소 또는 짧은 ID 입력 (예: lSgKZj_c5)');
 
   modelStatusDiv = createDiv('모델을 로드해주세요.');
@@ -162,18 +149,11 @@ function toggleFlip() {
   isFlipped = !isFlipped;
 }
 
-// [수정됨] 카메라 전환 시 stopVideo() 호출 및 딜레이 적용
 function switchCamera() {
-  // 1. 기존 카메라 완전 종료
   stopVideo();
-  
-  // 2. 로딩 상태 초기화
   isVideoLoaded = false; 
-  
-  // 3. 모드 전환
   facingMode = facingMode === "user" ? "environment" : "user";
   
-  // 4. 약간의 딜레이 후 재시작 (하드웨어 자원 해제 시간 확보)
   setTimeout(() => {
     setupCamera();
   }, 200); 
@@ -184,7 +164,6 @@ function updateModelInput() {
   modelInput.value(selectedModelURL || "");
 }
 
-// [수정됨] 스마트 ID 처리 로직 (ID만 입력해도 URL 자동 생성)
 function initializeModel() {
   let inputVal = modelInput.value().trim();
   let finalModelURL = "";
@@ -194,17 +173,12 @@ function initializeModel() {
     return;
   }
 
-  // 1. 전체 주소(https://...)를 넣었을 경우
   if (inputVal.startsWith('http')) {
       finalModelURL = inputVal;
-  } 
-  // 2. 짧은 ID만 넣었을 경우 (예: lSgKZj_c5)
-  else {
-      // 티처블 머신 기본 주소 붙여주기
+  } else {
       finalModelURL = "https://teachablemachine.withgoogle.com/models/" + inputVal + "/";
   }
 
-  // 3. 주소 끝에 model.json 보정
   if (!finalModelURL.endsWith('model.json')) {
       if (!finalModelURL.endsWith('/')) {
           finalModelURL += '/';
@@ -212,7 +186,6 @@ function initializeModel() {
       finalModelURL += 'model.json';
   }
 
-  // UI 피드백
   if (modelStatusDiv) {
       modelStatusDiv.html("모델을 불러오는 중입니다...");
       modelStatusDiv.style("color", "#666");
@@ -278,6 +251,7 @@ function gotResults(error, results) {
 }
 
 function draw() {
+  // [수정] 배경도 400x400에 맞춰 검정색으로 설정
   background(0);
   
   if (!isVideoLoaded) {
@@ -311,8 +285,9 @@ function draw() {
 }
 
 function resizeCanvasToFit() {
-  resizeCanvas(400, 300);
-  video.size(400, 300);
+  // [수정] 400x400으로 리사이즈
+  resizeCanvas(400, 400);
+  video.size(400, 400);
 }
 
 /* --- Bluetooth Logic --- */
