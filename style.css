@@ -1,4 +1,4 @@
-/* style.css - Boundary X: Image Model Edition (Square Ratio Fixed) */
+/* style.css - Boundary X: Teachable Machine Image (Responsive & Sticky) */
 
 :root {
   /* Palette */
@@ -67,18 +67,18 @@ header {
   transition: height 0.3s ease;
 }
 
-/* [추가] TM 뱃지 스타일 */
+/* TM Badge Style */
 .tm-badge {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  background-color: #FFFFFF; /* 흰색 배경 */
-  color: #000000;            /* 검은 글씨 */
-  font-size: 0.75rem;        /* 작은 폰트 사이즈 */
-  font-weight: 800;          /* 굵게 */
-  padding: 2px 6px;          /* 내부 여백 */
-  border-radius: 4px;        /* 둥근 모서리 (Rounded Square) */
-  margin-left: 4px;          /* 텍스트와의 간격 조정 */
+  background-color: #FFFFFF;
+  color: #000000;
+  font-size: 0.75rem;
+  font-weight: 800;
+  padding: 2px 6px;
+  border-radius: 4px;
+  margin-left: 4px;
   line-height: 1;
   vertical-align: middle;
 }
@@ -112,11 +112,11 @@ main {
   gap: 2rem;
 }
 
-/* [핵심 수정] Canvas Container (1:1 Square Ratio) */
+/* Canvas Container (1:1 Square Ratio) */
 .canvas-container { 
     width: 100%;
     max-width: 400px;
-    aspect-ratio: 1/1; /* 4/3 -> 1/1 정사각형 변경 */
+    aspect-ratio: 1/1; /* 정사각형 비율 고정 */
     border-radius: var(--radius-card);
     overflow: hidden;
     background: #000;
@@ -353,7 +353,9 @@ address {
   color: #666;
 }
 
-/* PC & Tablet Layout (가로 배치) */
+/* --- RESPONSIVE LAYOUT SYSTEM --- */
+
+/* 1. PC & Tablet Layout (PC) */
 @media (min-width: 768px) {
   main {
     flex-direction: row;       
@@ -363,7 +365,7 @@ address {
   }
 
   .canvas-container {
-    position: sticky; 
+    position: sticky; /* 스크롤 내려도 따라오게 */
     top: 2rem;        
     width: 400px;
   }
@@ -373,16 +375,66 @@ address {
   }
 }
 
-/* Mobile Layout */
-@media (max-width: 767px) {
-  .footer-top { flex-direction: column; gap: 3rem; }
-  .footer-links { gap: 2.5rem; flex-direction: column; }
+/* 2. Mobile Portrait (세로 모드) */
+@media (max-width: 767px) and (orientation: portrait) {
   header { padding: 0.8rem 1rem; }
   .title { font-size: 1rem; }
   .title img { height: 20px; }
   .back-button { font-size: 0.8rem; padding: 0.4rem 0.8rem; }
-  main { padding: 2rem 1rem; }
+  
+  .footer-top { flex-direction: column; gap: 3rem; }
+  .footer-links { gap: 2.5rem; flex-direction: column; }
+  
+  main { padding: 1rem; gap: 1.5rem; }
+  
+  /* [Sticky] 세로 모드 플로팅 */
+  .canvas-container {
+    position: sticky;        
+    top: 70px;               /* 헤더 높이만큼 띄움 */
+    z-index: 90;             /* 컨트롤보다 위에 표시 */
+    margin: 0 auto;          /* 중앙 정렬 */
+    margin-bottom: 1rem;
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5); /* 띄워진 느낌 강조 */
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    width: 100%;             /* 너비 꽉 채움 */
+    max-width: 100%;
+  }
+
   .control-group { padding: 1.5rem; }
   .button-group { flex-direction: column; }
   button { width: 100%; }
+}
+
+/* 3. Mobile Landscape (가로 모드) */
+@media (max-width: 900px) and (orientation: landscape) {
+  header { padding: 0.5rem 1rem; }
+  
+  main {
+    flex-direction: row;      /* 좌우 배치 */
+    align-items: flex-start;  /* 상단 정렬 (Sticky 필수 조건) */
+    padding: 1rem;
+    gap: 1.5rem;
+  }
+
+  /* [Sticky] 가로 모드 플로팅 */
+  .canvas-container {
+    position: sticky;         
+    top: 80px;                /* 헤더 높이만큼 띄움 */
+    z-index: 90;
+    
+    width: 45%;               /* 화면 절반 차지 */
+    min-width: 300px;         /* 최소 너비 보장 */
+    flex-shrink: 0;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.2); 
+    margin-bottom: 0;
+  }
+  
+  .controls {
+    flex: 1;                  
+    width: 50%;
+  }
+
+  .control-group { padding: 1rem; }
+  .button-group { flex-direction: row; } 
+  footer { display: none; } /* 가로 모드 공간 확보를 위해 푸터 숨김 */
 }
