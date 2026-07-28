@@ -40,13 +40,13 @@ const modelList = {
 let isSendingData = false;
 let canvas; // Canvas 객체 저장용
 
-// 안정화 필터: 신뢰도 85% 이상 + 3프레임 연속일 때만 전송 (노이즈로 인한 오작동/과다 전송 방지)
-let lastLabel = "";
-let consecutiveCount = 0;
-const CONSISTENCY_THRESHOLD = 3;
-
 // 반복 실패 시 안내 메시지가 매 프레임 깜빡이지 않도록 최소 간격을 둠
 let lastSendErrorTime = 0;
+
+// 문자열에 한글(자모/완성형)이 포함되어 있는지 검사
+function containsKorean(text) {
+  return /[\uAC00-\uD7A3\u3131-\u318E]/.test(text);
+}
 
 // 주어진 프로미스가 정해진 시간 안에 끝나지 않으면 강제로 실패 처리 (BLE 응답이 영영 안 올 때 대비)
 function withTimeout(promise, ms) {
@@ -212,6 +212,31 @@ function initializeModel() {
 
   console.log("Loading model from:", finalModelURL);
 
+  // 클래스 이름에 한글이 있는지 metadata.json으로 먼저 확인
+  const metadataURL = finalModelURL.replace(/model\.json$/, 'metadata.json');
+  fetch(metadataURL)
+    .then(res => res.json())
+    .then(metadata => {
+      const labels = metadata.labels || [];
+      const koreanLabels = labels.filter(containsKorean);
+      if (koreanLabels.length > 0) {
+        if (modelStatusDiv) {
+          modelStatusDiv.html(`⚠️ 클래스 이름은 영어로만 지정해야 합니다. (한글 클래스: ${koreanLabels.join(', ')})`);
+          modelStatusDiv.style("color", "#EA4335");
+          modelStatusDiv.style("background-color", "#FCE8E6");
+        }
+        return; // 분류 모델 로드 자체를 시작하지 않음
+      }
+      loadClassifier(finalModelURL);
+    })
+    .catch(err => {
+      // metadata.json을 못 가져와도(자체 호스팅 모델 등 구조가 다른 경우) 검사 없이 진행
+      console.warn("메타데이터 확인 실패, 클래스명 검사 없이 진행합니다:", err);
+      loadClassifier(finalModelURL);
+    });
+}
+
+function loadClassifier(finalModelURL) {
   try {
     classifier = ml5.imageClassifier(finalModelURL, modelLoaded);
   } catch (e) {
@@ -272,21 +297,8 @@ function gotResults(error, results) {
     return;
   }
   if (results && results.length > 0) {
-    const bestResult = results[0];
-
-    if (bestResult.confidence > 0.85) {
-      if (bestResult.label === lastLabel) {
-        consecutiveCount++;
-      } else {
-        lastLabel = bestResult.label;
-        consecutiveCount = 0;
-      }
-
-      if (consecutiveCount >= CONSISTENCY_THRESHOLD) {
-        label = bestResult.label;
-        sendBluetoothData(label);
-      }
-    }
+    label = results[0].label;
+    sendBluetoothData(label);
   }
   classifyVideo();
 }
@@ -437,6 +449,11 @@ function updateBluetoothStatusUI(connected = false, error = false) {
 // 성공하면 true, 스킵되거나 실패하면 false를 반환
 async function sendBluetoothData(data) {
   if (!rxCharacteristic || !isConnected) return false;
+  // 방어적 안전망: 어떤 경로로든 한글 라벨이 들어오면 전송하지 않음
+  if (containsKorean(data)) {
+    console.warn("한글 라벨은 전송하지 않습니다:", data);
+    return false;
+  }
   if (isSendingData) return false;
 
   try {
