@@ -1,6 +1,7 @@
 /**
  * sketch.js
- * Boundary X Teachable Machine Controller Logic (Square Crop Fixed)
+ * BoundaryX AI 모델학습(Teachable Machine) 웹앱
+ * 카메라를 정사각형으로 크롭해 분류하고, 결과 라벨을 BBC micro:bit에 BLE(UART)로 전송
  */
 
 // Bluetooth UUIDs
@@ -42,16 +43,6 @@ let canvas; // Canvas 객체 저장용
 
 // 반복 실패 시 안내 메시지가 매 프레임 깜빡이지 않도록 최소 간격을 둠
 let lastSendErrorTime = 0;
-
-// BLE 연결 시각과 모델 로드 단계(debugStage)를 기록해서, 연결이 끊기는 시점의 상태를 화면과 콘솔에서 바로 확인할 수 있게 함
-let debugStage = "idle";
-let bleConnectedAt = 0;
-
-function setStage(stage) {
-  debugStage = stage;
-  const t = performance.now().toFixed(0);
-  console.log(`[DEBUG ${t}ms] Stage -> ${stage}`);
-}
 
 // 문자열에 한글(자모/완성형)이 포함되어 있는지 검사
 function containsKorean(text) {
@@ -230,17 +221,11 @@ function initializeModel() {
 
   console.log("Loading model from:", finalModelURL);
 
-  setStage("metadata_fetch_start");
-  if (bleConnectedAt > 0) {
-    console.log(`[DEBUG] BLE 연결 후 모델 로드 시작까지 ${((performance.now() - bleConnectedAt) / 1000).toFixed(1)}초 경과 (연결은 유지 중)`);
-  }
-
   // 클래스 이름에 한글이 있는지 metadata.json으로 먼저 확인
   const metadataURL = finalModelURL.replace(/model\.json$/, 'metadata.json');
   fetch(metadataURL)
     .then(res => res.json())
     .then(metadata => {
-      setStage("metadata_fetch_done");
       const labels = metadata.labels || [];
       const koreanLabels = labels.filter(containsKorean);
       if (koreanLabels.length > 0) {
@@ -255,14 +240,12 @@ function initializeModel() {
     })
     .catch(err => {
       // metadata.json을 못 가져와도(자체 호스팅 모델 등 구조가 다른 경우) 검사 없이 진행
-      setStage("metadata_fetch_failed");
       console.warn("메타데이터 확인 실패, 클래스명 검사 없이 진행합니다:", err);
       loadClassifier(finalModelURL);
     });
 }
 
 function loadClassifier(finalModelURL) {
-  setStage("model_json_precheck");
   // model.json이 실제로 존재하고 유효한 JSON인지 먼저 확인한 뒤에만 ml5로 전달함
   fetch(finalModelURL)
     .then(res => {
@@ -270,11 +253,9 @@ function loadClassifier(finalModelURL) {
       return res.json(); // 응답이 실제로 유효한 JSON인지까지 확인 (XML 에러 페이지 등을 걸러냄)
     })
     .then(() => {
-      setStage("ml5_imageClassifier_start (모델/가중치 다운로드+빌드 구간)");
       classifier = ml5.imageClassifier(finalModelURL, modelLoaded);
     })
     .catch(e => {
-      setStage("model_json_precheck_failed");
       console.error("model.json 사전 검증 실패:", e);
       if (modelStatusDiv) {
         modelStatusDiv.html("⚠️ 모델 주소가 올바르지 않습니다. 링크의 영문 대소문자까지 정확히 입력했는지 확인해주세요.");
@@ -285,7 +266,6 @@ function loadClassifier(finalModelURL) {
 }
 
 function modelLoaded() {
-  setStage("model_loaded_success");
   console.log('모델 로드 완료');
   if (modelStatusDiv) {
       modelStatusDiv.html("모델이 성공적으로 로드되었습니다!");
@@ -329,12 +309,9 @@ function classifyVideo() {
   if (!isClassifying) return;
   // 왜곡 없는 캔버스 화면 자체를 분류 (정확도 향상)
   // video를 직접 넣으면 원본(4:3)이 들어가서 AI가 찌그러진 상태로 인식할 수 있음
-  console.log("분류 시작 (classify 호출)");
-  const classifyStartTime = performance.now();
-  // ml5 1.4.0 콜백 규칙: 성공 시 callback(result), 실패 시 callback(undefined, error)
-  // -> 기존 코드가 기대하는 (error, results) 순서로 정규화해서 넘김
+  // ml5 1.4.0은 성공 시 callback(result), 실패 시 callback(undefined, error) 형태로 호출함
+  // -> 이후 코드가 쓰는 (error, results) 순서로 정규화해서 넘김
   classifier.classify(canvas, (resultOrUndefined, errorArg) => {
-    console.log(`분류 1회 소요시간: ${(performance.now() - classifyStartTime).toFixed(0)}ms`);
     const error = errorArg;
     const results = errorArg ? undefined : resultOrUndefined;
     gotResults(error, results);
@@ -347,7 +324,6 @@ let circuitBreakerTrips = 0;
 const MAX_CONSECUTIVE_CLASSIFY_ERRORS = 15; // 카메라 전환, 일시적 WebGL 문제 등 순간적인 hiccup에 여유를 둠
 const RETRY_COOLDOWN_MS = 3000;
 const MAX_COOLDOWN_RETRIES = 3; // 쿨다운 후 재시도까지 이 횟수만큼 반복 실패하면 완전히 중지
-const CLASSIFY_REST_MS = 0; // 분류가 끝난 뒤 다음 분류 전까지 쉬는 시간 - 프레임 드랍 원인 재진단 전까지 0으로 되돌림
 
 function gotResults(error, results) {
   if (error) {
@@ -370,7 +346,7 @@ function gotResults(error, results) {
       setTimeout(() => { if (isClassifying) classifyVideo(); }, RETRY_COOLDOWN_MS);
       return;
     }
-    setTimeout(classifyVideo, CLASSIFY_REST_MS);
+    classifyVideo();
     return;
   }
   consecutiveClassifyErrors = 0; // 성공하면 카운터 리셋
@@ -379,7 +355,7 @@ function gotResults(error, results) {
     label = results[0].label;
     sendBluetoothData(label);
   }
-  setTimeout(classifyVideo, CLASSIFY_REST_MS);
+  classifyVideo();
 }
 
 function draw() {
@@ -449,8 +425,6 @@ async function connectBluetooth() {
 
     isConnected = true;
     bluetoothStatus = "연결됨: " + bluetoothDevice.name;
-    bleConnectedAt = performance.now();
-    setStage("ble_connected_idle");
     updateBluetoothStatusUI(true);
     
   } catch (error) {
@@ -465,10 +439,6 @@ let isManualDisconnect = false;
 
 // 수동 해제든 예기치 않은 끊김이든 이 함수 하나로 상태를 정리
 function onDisconnected() {
-  // 끊기기 직전 어느 단계였는지, 연결이 얼마나 유지됐는지 기록
-  const elapsedSec = bleConnectedAt > 0 ? ((performance.now() - bleConnectedAt) / 1000).toFixed(1) : "?";
-  console.error(`[DEBUG] BLE 연결 끊김 발생 -> 마지막 단계: "${debugStage}", 연결 유지 시간: ${elapsedSec}초, 수동해제여부: ${isManualDisconnect}`);
-
   isConnected = false;
   rxCharacteristic = null;
   txCharacteristic = null;
@@ -493,8 +463,7 @@ function onDisconnected() {
     bluetoothStatus = "연결이 끊어졌습니다. 다시 연결해주세요.";
     updateBluetoothStatusUI(false, true);
     if (modelStatusDiv) {
-      // 화면에도 마지막 단계/유지 시간을 표시 (PC 콘솔 없이 아이폰에서 바로 확인 가능)
-      modelStatusDiv.html(`⚠️ 블루투스 연결이 예기치 않게 끊어졌습니다.<br><small>[진단정보] 마지막 단계: ${debugStage} / 연결 유지 시간: ${elapsedSec}초</small>`);
+      modelStatusDiv.html("⚠️ 블루투스 연결이 예기치 않게 끊어졌습니다. 다시 연결해주세요.");
       modelStatusDiv.style("color", "#EA4335");
       modelStatusDiv.style("background-color", "#FCE8E6");
     }
@@ -529,6 +498,11 @@ function updateBluetoothStatusUI(connected = false, error = false) {
       } else if (error) {
         statusElement.addClass('status-error');
       }
+  }
+
+  // 블루투스가 연결된 상태에서만 모델 로드를 시작할 수 있음
+  if (initializeModelButton) {
+    initializeModelButton.elt.disabled = !connected;
   }
 }
 
