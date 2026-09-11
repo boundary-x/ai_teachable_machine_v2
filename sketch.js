@@ -329,7 +329,11 @@ function classifyVideo() {
   if (!isClassifying) return;
   // 왜곡 없는 캔버스 화면 자체를 분류 (정확도 향상)
   // video를 직접 넣으면 원본(4:3)이 들어가서 AI가 찌그러진 상태로 인식할 수 있음
-  classifier.classify(canvas, gotResults);
+  const classifyStartTime = performance.now();
+  classifier.classify(canvas, (error, results) => {
+    console.log(`분류 1회 소요시간: ${(performance.now() - classifyStartTime).toFixed(0)}ms`);
+    gotResults(error, results);
+  });
 }
 
 // 분류가 연속으로 실패하면 잠깐 쉬었다가 재시도하고, 그마저 반복되면 완전히 멈추는 안전장치
