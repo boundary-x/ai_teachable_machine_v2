@@ -331,8 +331,12 @@ function classifyVideo() {
   // video를 직접 넣으면 원본(4:3)이 들어가서 AI가 찌그러진 상태로 인식할 수 있음
   console.log("분류 시작 (classify 호출)");
   const classifyStartTime = performance.now();
-  classifier.classify(canvas, (error, results) => {
+  // ml5 1.4.0 콜백 규칙: 성공 시 callback(result), 실패 시 callback(undefined, error)
+  // -> 기존 코드가 기대하는 (error, results) 순서로 정규화해서 넘김
+  classifier.classify(canvas, (resultOrUndefined, errorArg) => {
     console.log(`분류 1회 소요시간: ${(performance.now() - classifyStartTime).toFixed(0)}ms`);
+    const error = errorArg;
+    const results = errorArg ? undefined : resultOrUndefined;
     gotResults(error, results);
   });
 }
