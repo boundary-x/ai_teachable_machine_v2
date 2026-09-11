@@ -156,6 +156,14 @@ function createUI() {
   modelInput.parent('model-key-container');
   modelInput.attribute('placeholder', '모델 전체 주소 또는 짧은 ID 입력 (예: lSgKZj_c5)');
 
+  const cameraContainerEl = document.querySelector('.canvas-container');
+  modelInput.elt.addEventListener('focus', () => {
+    if (cameraContainerEl) cameraContainerEl.classList.add('hide-camera-on-input');
+  });
+  modelInput.elt.addEventListener('blur', () => {
+    if (cameraContainerEl) cameraContainerEl.classList.remove('hide-camera-on-input');
+  });
+
   modelStatusDiv = createDiv('모델을 로드해주세요.');
   modelStatusDiv.parent('model-key-container');
   modelStatusDiv.id('modelStatus');
