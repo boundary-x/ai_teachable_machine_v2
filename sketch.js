@@ -193,7 +193,7 @@ function updateModelInput() {
 }
 
 function initializeModel() {
-  let inputVal = modelInput.value().trim();
+  let inputVal = modelInput.value().replace(/\s+/g, '');
   let finalModelURL = "";
   
   if (!inputVal) {
@@ -269,7 +269,7 @@ function loadClassifier(finalModelURL) {
       setStage("model_json_precheck_failed");
       console.error("model.json 사전 검증 실패:", e);
       if (modelStatusDiv) {
-        modelStatusDiv.html("⚠️ 모델 주소가 올바르지 않습니다. 링크를 다시 확인해주세요.");
+        modelStatusDiv.html("⚠️ 모델 주소가 올바르지 않습니다. 링크의 영문 대소문자까지 정확히 입력했는지 확인해주세요.");
         modelStatusDiv.style("color", "#EA4335");
         modelStatusDiv.style("background-color", "#FCE8E6");
       }
@@ -294,6 +294,7 @@ function startClassification() {
     return;
   }
   consecutiveClassifyErrors = 0;
+  circuitBreakerTrips = 0;
   isClassifying = true;
   classifyVideo();
 }
@@ -323,28 +324,39 @@ function classifyVideo() {
   classifier.classify(canvas, gotResults);
 }
 
-// 분류가 연속으로 계속 실패하면 자동으로 멈추는 안전장치
+// 분류가 연속으로 실패하면 잠깐 쉬었다가 재시도하고, 그마저 반복되면 완전히 멈추는 안전장치
 let consecutiveClassifyErrors = 0;
-const MAX_CONSECUTIVE_CLASSIFY_ERRORS = 5;
+let circuitBreakerTrips = 0;
+const MAX_CONSECUTIVE_CLASSIFY_ERRORS = 15; // 카메라 전환, 일시적 WebGL 문제 등 순간적인 hiccup에 여유를 둠
+const RETRY_COOLDOWN_MS = 3000;
+const MAX_COOLDOWN_RETRIES = 3; // 쿨다운 후 재시도까지 이 횟수만큼 반복 실패하면 완전히 중지
 
 function gotResults(error, results) {
   if (error) {
     consecutiveClassifyErrors++;
     console.error(`분류 오류 (연속 ${consecutiveClassifyErrors}회):`, error);
     if (consecutiveClassifyErrors >= MAX_CONSECUTIVE_CLASSIFY_ERRORS) {
-      console.error("분류 오류가 반복되어 자동으로 중지합니다.");
-      isClassifying = false;
-      if (modelStatusDiv) {
-        modelStatusDiv.html("⚠️ 모델 분류에 반복적으로 실패하여 자동 중지되었습니다. 모델 링크를 확인해주세요.");
-        modelStatusDiv.style("color", "#EA4335");
-        modelStatusDiv.style("background-color", "#FCE8E6");
+      circuitBreakerTrips++;
+      if (circuitBreakerTrips >= MAX_COOLDOWN_RETRIES) {
+        console.error("분류 오류가 반복되어 완전히 중지합니다.");
+        isClassifying = false;
+        if (modelStatusDiv) {
+          modelStatusDiv.html("⚠️ 모델 분류에 반복적으로 실패하여 자동 중지되었습니다. 모델 링크를 확인해주세요.");
+          modelStatusDiv.style("color", "#EA4335");
+          modelStatusDiv.style("background-color", "#FCE8E6");
+        }
+        return; // classifyVideo()를 다시 호출하지 않음 -> 루프 종료
       }
-      return; // classifyVideo()를 다시 호출하지 않음 -> 루프 종료
+      console.warn(`분류 오류가 반복되어 ${RETRY_COOLDOWN_MS}ms 후 재시도합니다. (${circuitBreakerTrips}/${MAX_COOLDOWN_RETRIES})`);
+      consecutiveClassifyErrors = 0;
+      setTimeout(() => { if (isClassifying) classifyVideo(); }, RETRY_COOLDOWN_MS);
+      return;
     }
     classifyVideo();
     return;
   }
   consecutiveClassifyErrors = 0; // 성공하면 카운터 리셋
+  circuitBreakerTrips = 0;
   if (results && results.length > 0) {
     label = results[0].label;
     sendBluetoothData(label);
