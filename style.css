@@ -404,6 +404,11 @@ address {
   .control-group { padding: 1.5rem; }
   .button-group { flex-direction: column; }
   button { width: 100%; }
+
+  /* 모델 주소 입력 중에는 카메라 화면을 숨겨서 입력 폼이 가려지지 않게 함 */
+  .canvas-container.hide-camera-on-input {
+    display: none;
+  }
 }
 
 /* 3. Mobile Landscape (가로 모드) */
@@ -440,4 +445,9 @@ address {
   .control-group { padding: 1rem; }
   .button-group { flex-direction: row; } 
   footer { display: none; } /* 가로 모드 공간 확보를 위해 푸터 숨김 */
+
+  /* 모델 주소 입력 중에는 카메라 화면을 숨겨서 입력 폼이 가려지지 않게 함 */
+  .canvas-container.hide-camera-on-input {
+    display: none;
+  }
 }
