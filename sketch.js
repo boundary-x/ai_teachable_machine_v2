@@ -343,6 +343,7 @@ let circuitBreakerTrips = 0;
 const MAX_CONSECUTIVE_CLASSIFY_ERRORS = 15; // 카메라 전환, 일시적 WebGL 문제 등 순간적인 hiccup에 여유를 둠
 const RETRY_COOLDOWN_MS = 3000;
 const MAX_COOLDOWN_RETRIES = 3; // 쿨다운 후 재시도까지 이 횟수만큼 반복 실패하면 완전히 중지
+const CLASSIFY_REST_MS = 100; // 분류가 끝난 뒤 다음 분류 전까지 쉬는 시간 - 렌더링이 GPU를 쓸 틈을 확보
 
 function gotResults(error, results) {
   if (error) {
@@ -365,7 +366,7 @@ function gotResults(error, results) {
       setTimeout(() => { if (isClassifying) classifyVideo(); }, RETRY_COOLDOWN_MS);
       return;
     }
-    classifyVideo();
+    setTimeout(classifyVideo, CLASSIFY_REST_MS);
     return;
   }
   consecutiveClassifyErrors = 0; // 성공하면 카운터 리셋
@@ -374,7 +375,7 @@ function gotResults(error, results) {
     label = results[0].label;
     sendBluetoothData(label);
   }
-  classifyVideo();
+  setTimeout(classifyVideo, CLASSIFY_REST_MS);
 }
 
 function draw() {
