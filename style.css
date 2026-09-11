@@ -376,7 +376,8 @@ address {
 }
 
 /* 2. Mobile Portrait (세로 모드) */
-@media (max-width: 767px) and (orientation: portrait) {
+/* 화면 비율이 세로로 넉넉한 경우에 적용 — 키보드가 올라와도 이 스타일이 유지됨 */
+@media (max-width: 767px) and (max-aspect-ratio: 13/9) {
   header { padding: 0.8rem 1rem; }
   .title { font-size: 1rem; }
   .title img { height: 20px; }
@@ -406,7 +407,9 @@ address {
 }
 
 /* 3. Mobile Landscape (가로 모드) */
-@media (max-width: 900px) and (orientation: landscape) {
+/* 화면 비율이 가로로 뚜렷하게 넓을 때만 적용 — 세로 모드에서 키보드가 올라와
+   일시적으로 너비가 높이보다 커지는 경우는 이 기준에 포함되지 않음 */
+@media (max-width: 900px) and (min-aspect-ratio: 13/9) {
   header { padding: 0.5rem 1rem; }
   
   main {
