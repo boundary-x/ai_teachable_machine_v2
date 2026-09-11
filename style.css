@@ -197,6 +197,17 @@ button {
   transform: translateY(-2px);
 }
 
+button:disabled {
+  background-color: #CCCCCC;
+  color: #888888;
+  cursor: not-allowed;
+  transform: none;
+}
+button:disabled:hover {
+  background-color: #CCCCCC;
+  transform: none;
+}
+
 .stop-button {
   background-color: white;
   color: var(--danger);
