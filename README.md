@@ -68,3 +68,14 @@ When the AI classifies an image, it sends the **Class Name (Label)** string foll
 - All rights to the source code and design of this project belong to BoundaryX.
 - Web: boundaryx.io
 - Contact: https://boundaryx.io/contact
+
+
+## 📖 In-app Guide & Support
+
+Use **Help (도움말)** in the header or expand **사용 가이드 및 지원** below the controls. The nine-step walkthrough explains image model preparation, class names, micro:bit setup, camera controls, model URL/ID input, automatic classification after loading, and stopping. The walkthrough only explains controls and does not operate them.
+
+The support card links to Teachable Machine image training, the introduction page's four MakeCode examples (device name, basic micro:bit, Ponybot speed and direction control), and the Ponybot autonomous mobility lesson. Troubleshooting covers model types, naming, camera access, Bluetooth, invalid URLs and stop behavior.
+
+This app loads **image models**; audio and pose projects need their respective apps. Bluetooth must be connected before the model load button is enabled. Loading starts classification automatically. The class label followed by a newline is sent; stopping attempts to send `stop`. The camera label does not confirm hardware receipt.
+
+Deploy `support.js` and `support.css` with the existing app files. `node tests/support.cjs` requires Node.js, Playwright, Microsoft Edge and internet access. It checks nine steps at seven viewport sizes, navigation, focus restoration and unchanged application state with simulated camera input. It does not verify model accuracy or physical micro:bit behavior.
