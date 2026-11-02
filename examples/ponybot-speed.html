@@ -1,0 +1,38 @@
+<!doctype html><html lang="ko"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>AI 포니봇 · 이미지 분류 속도 조절</title><style>body{font-family:system-ui,sans-serif;background:#f6f7f8;color:#111;margin:0;padding:24px}main{max-width:860px;margin:auto;background:white;border:1px solid #ddd;border-radius:20px;padding:28px;box-sizing:border-box}h1{font-size:25px}p,li{line-height:1.8;color:#555}code{overflow-wrap:anywhere}pre{background:#111;color:#eee;padding:20px;border-radius:12px;overflow:auto;font-size:14px;line-height:1.6}button,a.action{display:inline-block;background:#111;color:white;border:0;border-radius:10px;padding:14px 18px;font-size:15px;cursor:pointer;text-decoration:none;margin:4px}#notice{min-height:24px}@media(max-width:480px){body{padding:12px}main{padding:18px}}</style><main><p>Teachable Machine · 프로젝트 예제</p><h1>AI 포니봇 · 이미지 분류 속도 조절</h1><p>학습한 이미지에 따라 느리게·보통·빠르게 전진하거나 정지합니다.</p><ol><li>Teachable Machine 클래스 이름을 <code>slow / normal / fast / stop</code>으로 설정하세요.</li><li>MakeCode에 <b>bluetooth</b>와 <b>https://github.com/boundary-x/ai_ponybot_basic</b> 확장을 추가하세요.</li><li>아래 코드를 복사해 MakeCode의 JavaScript 화면에 전체 붙여넣기 하세요.</li><li>블루투스 페어링을 ‘필요하지 않음’으로 설정하고 다운로드하세요.</li></ol><p>전진 속도는 slow 50, normal 100, fast 150입니다. 포니봇 모터 속도 범위는 0~255입니다. 이 숫자는 실제 주행 속도 단위가 아니며 바닥과 배터리에 따라 조절하세요. 방향 제어 예제와 별도 프로젝트로 사용하세요. stop 또는 다른 문자열을 받거나 블루투스 연결이 해제되면 정지합니다. 다음 명령을 받을 때까지 현재 동작을 유지합니다.</p><button id="copy">코드 복사</button><a class="action" href="ponybot-speed.ts" download>코드 파일 다운로드</a><a class="action" href="https://makecode.microbit.org/" target="_blank" rel="noopener noreferrer">MakeCode 열기 ↗</a><p id="notice" role="status">테스트용 예제 · 실물 동작과 블록 변환 확인 전</p><pre><code id="code">// Teachable Machine 클래스: slow, normal, fast, stop
+// 확장: bluetooth, github:boundary-x/ai_ponybot_basic
+// 전진 속도 조절 예제입니다. 방향 제어 예제와 별도로 사용하세요.
+function 포니봇_느리게 () {
+    aiPonybot.runNormal(aiPonybot.DirectionControl.Forward, 50)
+}
+function 포니봇_보통 () {
+    aiPonybot.runNormal(aiPonybot.DirectionControl.Forward, 100)
+}
+function 포니봇_빠르게 () {
+    aiPonybot.runNormal(aiPonybot.DirectionControl.Forward, 150)
+}
+function 포니봇_정지 () {
+    aiPonybot.stopAllMotors()
+}
+bluetooth.onUartDataReceived(serial.delimiters(Delimiters.NewLine), function () {
+    받은문자 = bluetooth.uartReadUntil(serial.delimiters(Delimiters.NewLine))
+    if (받은문자 == "slow") {
+        포니봇_느리게()
+    } else if (받은문자 == "normal") {
+        포니봇_보통()
+    } else if (받은문자 == "fast") {
+        포니봇_빠르게()
+    } else {
+        포니봇_정지()
+    }
+})
+bluetooth.onBluetoothConnected(function () {
+    포니봇_정지()
+})
+bluetooth.onBluetoothDisconnected(function () {
+    포니봇_정지()
+})
+let 받은문자 = ""
+aiPonybot.runNormal(aiPonybot.DirectionControl.Forward, 0)
+포니봇_정지()
+bluetooth.startUartService()
+</code></pre></main><script>document.getElementById('copy').onclick=async()=>{try{await navigator.clipboard.writeText(document.getElementById('code').textContent);document.getElementById('notice').textContent='복사했습니다. MakeCode의 JavaScript 화면에 붙여넣으세요.';}catch{document.getElementById('notice').textContent='복사하지 못했습니다. 아래 코드를 직접 선택하거나 코드 파일을 다운로드하세요.';}};</script></html>
